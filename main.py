@@ -1,12 +1,6 @@
 import socket
 
 
-# message = input("Input a text: ")
-# client.send(message.encode())
-# data = client.recv(1024)
-# print("Server sent: ", data.decode())
-
-
 def connect(operation, data):
     try:
         client = socket.socket()
@@ -15,7 +9,23 @@ def connect(operation, data):
         if operation == "submit_credentials":
             client.send(data.encode())
 
+        if operation == "get_list_of_services":
+            client.send(data.encode())
+            services = client.recv(1024).decode()
+            return services
+
+        if operation == "get_service_checklist":
+            client.send(data.encode())
+            checklist = ""
+            while True:
+                package = client.recv(1024).decode()
+                checklist += package
+                if not package:
+                    break
+            return checklist
+
         client.close()
+
     except Exception as e:
         print("Client Connection Error: ", e)
 
