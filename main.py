@@ -24,6 +24,16 @@ def connect(operation, data):
                     break
             return checklist
 
+        if operation == "start_ec2_scan":
+            client.send(data.encode())
+            scan_info = ""
+            while True:
+                package = client.recv(1024).decode()
+                scan_info += package
+                if not package:
+                    break
+            return scan_info
+
         client.close()
 
     except Exception as e:
