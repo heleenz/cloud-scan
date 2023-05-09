@@ -9,6 +9,9 @@ import json
 
 
 class AWSCredentialsWindow:
+    access_key = ""
+    secret_key = ""
+
     def __init__(self):
         self.window = tk.Tk()
         self.window.geometry("400x200")
@@ -37,10 +40,14 @@ class AWSCredentialsWindow:
         access_key = self.access_key_entry.get()
         secret_key = self.secret_key_entry.get()
 
-        operation = "submit_credentials"
-        data = {"operation": "submit_credentials", "access_key": access_key, "secret_key": secret_key}
-        connect(operation, json.dumps(data))
+        # operation = "submit_credentials"
+        # data = {"operation": "submit_credentials", "access_key": access_key, "secret_key": secret_key}
+        # connect(operation, json.dumps(data))
 
+        os.environ['AWS_ACCESS_KEY_ID'] = access_key
+        os.environ['AWS_SECRET_ACCESS_KEY'] = secret_key
+
+        print(f"AWS WINDOW\n id: {access_key}\nkey: {secret_key}")
         # Close the window after submitting
         self.window.destroy()
 

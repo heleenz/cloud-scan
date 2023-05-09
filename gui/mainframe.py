@@ -2,7 +2,9 @@ from tkinter import *
 from tkinter import ttk
 from main import connect
 import json
+import os
 from awsconnect import AWSCredentialsWindow
+
 
 # CHECKLIST PROCESSING
 # Load list of services for Checklist combobox
@@ -68,9 +70,15 @@ def show_selected(event):
 
 
 def start_ec2_scan():
+    # importing aws credentials
+    access_key = os.environ['AWS_ACCESS_KEY_ID']
+    secret_key = os.environ['AWS_SECRET_ACCESS_KEY']
+
+    print(f"SCAN WINDOW\n id: {access_key}\nkey: {secret_key}")
+
     ec2_instance_id = ec2_entry.get()
     operation = "start_ec2_scan"
-    data = {"operation": "start_ec2_scan", "instance_id": ec2_instance_id}
+    data = {"operation": "start_ec2_scan", "instance_id": ec2_instance_id, "access_key": access_key, "secret_key": secret_key}
     tmp = connect(operation, json.dumps(data))
     ec2_output_lbl["text"] = tmp
     print("Scanning EC2. Please Wait...")
@@ -79,6 +87,7 @@ def start_ec2_scan():
 # Create the credentials window and show it
 credentials_window = AWSCredentialsWindow()
 credentials_window.show()
+
 
 # Create main window
 root = Tk()

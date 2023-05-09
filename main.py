@@ -6,8 +6,8 @@ def connect(operation, data):
         client = socket.socket()
         client.connect(("127.0.0.1", 51708))
 
-        if operation == "submit_credentials":
-            client.send(data.encode())
+        # if operation == "submit_credentials":
+        #     client.send(data.encode())
 
         if operation == "get_list_of_services":
             client.send(data.encode())

@@ -3,13 +3,13 @@ import os
 from dbmanager import DBManager
 from modules.ec2enum import start_ec2_scan
 
-key_id = ""
-secret_key = ""
+# key_id = ""
+# secret_key = ""
 
 
 def client_thread(con):
-    global key_id
-    global secret_key
+    # global key_id
+    # global secret_key
     # Receive data from client
     data = con.recv(1024)
     pd = data.decode()
@@ -17,13 +17,13 @@ def client_thread(con):
 
     db = DBManager()
 
-    if pd["operation"] == "submit_credentials":
-        key_id = pd["access_key"]
-        secret_key = pd["secret_key"]
-        print("ID: ", key_id)
-        print("KEY: ", secret_key)
+    # if pd["operation"] == "submit_credentials":
+    #     key_id = pd["access_key"]
+    #     secret_key = pd["secret_key"]
+    #     print("ID: ", key_id)
+    #     print("KEY: ", secret_key)
 
-    elif pd["operation"] == "get_list_of_services":
+    if pd["operation"] == "get_list_of_services":
         services = db.get_list_of_services()
         pd = json.dumps(services)
         con.send(pd.encode())
@@ -35,6 +35,9 @@ def client_thread(con):
 
     elif pd["operation"] == "start_ec2_scan":
         instance_id = pd["instance_id"]
+        key_id = pd["access_key"]
+        secret_key = pd["secret_key"]
+        print(f"id: {key_id}\nkey: {secret_key}")
         pd = start_ec2_scan(instance_id, key_id, secret_key)
         con.send(pd.encode())
 
