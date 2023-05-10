@@ -65,11 +65,11 @@ def show_selected(event):
 
     for thing in service_checklist:
         index = service_checklist.index(thing)
-        Label(inner_frame, text=list_of_lists[index], wraplength=820, background="#FFFFFF").grid(row=index, sticky="ew",
+        Label(inner_frame, text=list_of_lists[index], wraplength=800, background="#FFFFFF").grid(row=index, sticky="ew",
                                                                                                  column=0, pady=10, ipadx=5, ipady=5)
 
 
-def start_ec2_scan():
+def ec2_enumeration():
     # importing aws credentials
     access_key = os.environ['AWS_ACCESS_KEY_ID']
     secret_key = os.environ['AWS_SECRET_ACCESS_KEY']
@@ -77,11 +77,30 @@ def start_ec2_scan():
     print(f"SCAN WINDOW\n id: {access_key}\nkey: {secret_key}")
 
     ec2_instance_id = ec2_entry.get()
-    operation = "start_ec2_scan"
-    data = {"operation": "start_ec2_scan", "instance_id": ec2_instance_id, "access_key": access_key, "secret_key": secret_key}
+    operation = "ec2_enumeration"
+    data = {"operation": "ec2_enumeration", "instance_id": ec2_instance_id, "access_key": access_key, "secret_key": secret_key}
     tmp = connect(operation, json.dumps(data))
-    ec2_output_lbl["text"] = tmp
+    ec2_enum_lbl["text"] = tmp
     print("Scanning EC2. Please Wait...")
+
+
+def ec2_misconfiguration():
+    access_key = os.environ['AWS_ACCESS_KEY_ID']
+    secret_key = os.environ['AWS_SECRET_ACCESS_KEY']
+    operation = "ec2_misconfiguration"
+    data = {"operation": "ec2_misconfiguration", "access_key": access_key, "secret_key": secret_key}
+    tmp = connect(operation, json.dumps(data))
+    ec2_misconfig_lbl["text"] = tmp
+    print(tmp)
+
+def select_scan():
+    print(choice.get())
+    if choice.get() == "Misconfiguration Check":
+        ec2_enum_frame.pack_forget()
+        ec2_misconfig_frame.pack(expand=1, fill="both")
+    else:
+        ec2_enum_frame.pack(expand=1, fill="both")
+        ec2_misconfig_frame.pack_forget()
 
 
 # Create the credentials window and show it
@@ -127,15 +146,35 @@ scan_notebook.add(scan_ec2, text="EC2")
 scan_notebook.add(scan_s3, text="S3")
 scan_notebook.add(scan_iam, text="IAM")
 
-ec2_lbl = ttk.Label(scan_ec2, text="Instance ID: ")
-ec2_lbl.grid(row=0, column=0, sticky="w")
-ec2_entry = ttk.Entry(scan_ec2)
-ec2_entry.grid(row=1, column=0, sticky="w")
-ec2_btn = ttk.Button(scan_ec2, text="GO!", command=start_ec2_scan)
-ec2_btn.grid(row=2, column=0, sticky="w", pady=5)
+enum = "Enumeration"
+misconfig = "Misconfiguration Check"
 
-ec2_output_lbl = ttk.Label(scan_ec2, text="Result will be here", padding=10, borderwidth=1, relief="solid")
-ec2_output_lbl.grid(row=3, column=0, sticky="w", columnspan=3)
+choice = StringVar(value=enum)
+
+ec2_enum_btn = ttk.Radiobutton(scan_ec2, text=enum, value=enum, variable=choice, command=select_scan)
+ec2_misconfig_btn = ttk.Radiobutton(scan_ec2, text=misconfig, value=misconfig, variable=choice, command=select_scan)
+
+ec2_enum_btn.pack(anchor="w")
+ec2_misconfig_btn.pack(anchor="w")
+
+# Enumeration Frame
+ec2_enum_frame = ttk.Frame(scan_ec2, borderwidth=1, relief="solid")
+ec2_lbl = ttk.Label(ec2_enum_frame, text="Instance ID: ")
+ec2_lbl.grid(row=0, column=0, sticky="w")
+ec2_entry = ttk.Entry(ec2_enum_frame)
+ec2_entry.grid(row=1, column=0, sticky="w")
+ec2_btn1 = ttk.Button(ec2_enum_frame, text="GO!", command=ec2_enumeration)
+ec2_btn1.grid(row=2, column=0, sticky="w", pady=5)
+ec2_enum_lbl = ttk.Label(ec2_enum_frame, text="Result will be here", padding=10)
+ec2_enum_lbl.grid(row=3, column=0, sticky="w", columnspan=3)
+ec2_enum_frame.pack(expand=1, fill="both")
+
+# Misconf frame
+ec2_misconfig_frame = ttk.Frame(scan_ec2, borderwidth=1, relief="solid")
+ec2_btn2 = ttk.Button(ec2_misconfig_frame, text="Start Check", command=ec2_misconfiguration)
+ec2_btn2.grid(row=0, column=0, sticky="w")
+ec2_misconfig_lbl = ttk.Label(ec2_misconfig_frame, padding=10)
+ec2_misconfig_lbl.grid(row=1, column=0, sticky="w")
 
 # Checklist tab
 check_list = ttk.Frame(notebook, borderwidth=1, relief="solid", padding=[10, 10, 0, 0])

@@ -5,7 +5,7 @@ import os
 # instance_id = 'i-0aa0b2f909e636a3b'
 
 
-def start_ec2_scan(instance_id, key_id, secret_key):
+def ec2_enumeration(instance_id, key_id, secret_key):
     scan_output = ""
 
     # create an EC2 client

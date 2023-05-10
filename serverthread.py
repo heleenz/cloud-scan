@@ -1,7 +1,8 @@
 import json
 import os
 from dbmanager import DBManager
-from modules.ec2enum import start_ec2_scan
+from modules.ec2enum import ec2_enumeration
+from modules.ec2misconfig import ec2_misconfiguration
 
 # key_id = ""
 # secret_key = ""
@@ -33,12 +34,18 @@ def client_thread(con):
         pd = json.dumps(checklist)
         con.send(pd.encode())
 
-    elif pd["operation"] == "start_ec2_scan":
+    elif pd["operation"] == "ec2_enumeration":
         instance_id = pd["instance_id"]
         key_id = pd["access_key"]
         secret_key = pd["secret_key"]
         print(f"id: {key_id}\nkey: {secret_key}")
-        pd = start_ec2_scan(instance_id, key_id, secret_key)
+        pd = ec2_enumeration(instance_id, key_id, secret_key)
+        con.send(pd.encode())
+
+    elif pd["operation"] == "ec2_misconfiguration":
+        key_id = pd["access_key"]
+        secret_key = pd["secret_key"]
+        pd = ec2_misconfiguration(key_id, secret_key)
         con.send(pd.encode())
 
     con.close()
