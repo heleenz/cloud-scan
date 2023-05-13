@@ -1,9 +1,6 @@
 import boto3
 import os
 
-# specify the instance ID to scan
-# instance_id = 'i-0aa0b2f909e636a3b'
-
 
 def ec2_enumeration(instance_id, key_id, secret_key):
     scan_output = ""
