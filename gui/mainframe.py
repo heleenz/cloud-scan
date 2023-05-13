@@ -91,9 +91,18 @@ def ec2_misconfiguration():
     operation = "ec2_misconfiguration"
     data = {"operation": "ec2_misconfiguration", "access_key": access_key, "secret_key": secret_key}
     tmp = connect(operation, json.dumps(data))
-    json.loads(tmp)
-    ec2_misconfig_lbl["text"] = tmp
-    print(json.loads(tmp))
+    # json.loads(tmp)
+    # ec2_misconfig_lbl["text"] = tmp
+    # print(json.loads(tmp))
+    count = 0
+
+    # Delete old records
+    for record in ec2_misconfig_table.get_children():
+        ec2_misconfig_table.delete(record)
+    # Add records to table
+    for record in json.loads(tmp):
+        ec2_misconfig_table.insert(parent='', index='end', iid=count, text="", values=(record[0], record[-1]))
+        count += 1
 
 
 def select_scan():
@@ -183,6 +192,21 @@ ec2_btn2 = ttk.Button(ec2_misconfig_frame, text="Start Check", command=lambda: t
 ec2_btn2.grid(row=0, column=0, sticky="w")
 ec2_misconfig_lbl = ttk.Label(ec2_misconfig_frame, padding=10)
 ec2_misconfig_lbl.grid(row=1, column=0, sticky="w")
+# Output table
+ec2_misconfig_table = ttk.Treeview(ec2_misconfig_frame)
+# Define columns
+ec2_misconfig_table['columns'] = ("Misconfiguration", "Severity level")
+# Formate columns
+ec2_misconfig_table.column("#0", width=0, stretch=NO)
+ec2_misconfig_table.column("Misconfiguration", anchor="w", width=350, minwidth=80)
+ec2_misconfig_table.column("Severity level", anchor="e", width=100, minwidth=50)
+# Create headings
+ec2_misconfig_table.heading("#0", text="", anchor="w")
+ec2_misconfig_table.heading("Misconfiguration", text="Misconfiguration", anchor="w")
+ec2_misconfig_table.heading("Severity level", text="Severity level", anchor="w")
+
+ec2_misconfig_table.grid(row=2, column=0)
+
 
 # Checklist tab
 check_list = ttk.Frame(notebook, borderwidth=1, relief="solid", padding=[10, 10, 0, 0])
