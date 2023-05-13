@@ -1,5 +1,7 @@
 import os
 import tkinter as tk
+from tkinter.messagebox import showerror, showwarning, showinfo
+import re
 from main import connect
 import json
 
@@ -40,16 +42,20 @@ class AWSCredentialsWindow:
         access_key = self.access_key_entry.get()
         secret_key = self.secret_key_entry.get()
 
-        # operation = "submit_credentials"
-        # data = {"operation": "submit_credentials", "access_key": access_key, "secret_key": secret_key}
-        # connect(operation, json.dumps(data))
+        access_key_regex = re.compile(r'(?<![A-Z0-9])[A-Z0-9]{20}(?![A-Z0-9])')
+        secret_key_regex = re.compile(r'(?<![A-Za-z0-9/+=])[A-Za-z0-9/+=]{40}(?![A-Za-z0-9/+=])')
 
-        os.environ['AWS_ACCESS_KEY_ID'] = access_key
-        os.environ['AWS_SECRET_ACCESS_KEY'] = secret_key
+        if access_key_regex.match(access_key) and secret_key_regex.match(secret_key):
+            print("Input validated!")
+            os.environ['AWS_ACCESS_KEY_ID'] = access_key
+            os.environ['AWS_SECRET_ACCESS_KEY'] = secret_key
 
-        print(f"AWS WINDOW\n id: {access_key}\nkey: {secret_key}")
-        # Close the window after submitting
-        self.window.destroy()
+            print(f"AWS WINDOW\n id: {access_key}\nkey: {secret_key}")
+            # Close the window after submitting
+            self.window.destroy()
+        else:
+            print("Invalid input")
+            showerror("Invalid input", "Incorrect access key or secret key")
 
     def show(self):
         self.window.mainloop()
