@@ -23,3 +23,10 @@ class DBManager:
             checklist.append(obj)
         return checklist
 
+    def get_full_scan_output(self, checklist_id):
+        statement = "SELECT checklist.title, checklist.description, severity_level.level " \
+                    "FROM checklist, severity_level " \
+                    "WHERE checklist.id = " + str(checklist_id) + " AND checklist.severity_id = severity_level.id"
+        self.cursor.execute(statement)
+        result = self.cursor.fetchall()
+        return result

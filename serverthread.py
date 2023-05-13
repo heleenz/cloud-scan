@@ -27,12 +27,19 @@ def client_thread(con):
         secret_key = pd["secret_key"]
         print(f"id: {key_id}\nkey: {secret_key}")
         pd = ec2_enumeration(instance_id, key_id, secret_key)
+
         con.send(pd.encode())
 
     elif pd["operation"] == "ec2_misconfiguration":
         key_id = pd["access_key"]
         secret_key = pd["secret_key"]
-        pd = ec2_misconfiguration(key_id, secret_key)
+        scan_output = ec2_misconfiguration(key_id, secret_key)
+        pd = []
+        for i in range(len(scan_output)):
+            if scan_output[i][-2] == 1:
+                result = db.get_full_scan_output(scan_output[i][0])
+                pd.append([scan_output[i][-1], result[0][0], result[0][1], result[0][2]])
+        pd = json.dumps(pd)
         con.send(pd.encode())
 
     con.close()

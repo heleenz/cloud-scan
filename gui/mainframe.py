@@ -91,8 +91,9 @@ def ec2_misconfiguration():
     operation = "ec2_misconfiguration"
     data = {"operation": "ec2_misconfiguration", "access_key": access_key, "secret_key": secret_key}
     tmp = connect(operation, json.dumps(data))
+    json.loads(tmp)
     ec2_misconfig_lbl["text"] = tmp
-    print(tmp)
+    print(json.loads(tmp))
 
 
 def select_scan():
