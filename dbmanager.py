@@ -15,12 +15,16 @@ class DBManager:
         return services
 
     def get_service_checklist(self, service):
-        self.cursor.execute("SELECT checklist.title, checklist.description "
-                            "FROM checklist, aws_services "
-                            "WHERE checklist.service_id = aws_services.id")
         checklist = []
-        for obj in self.cursor.fetchall():
-            checklist.append(obj)
+        statement = "SELECT checklist.title, checklist.description " \
+                    "FROM checklist, aws_services " \
+                    "WHERE aws_services.service_name = '" + service + "' AND checklist.service_id = aws_services.id"
+        try:
+            self.cursor.execute(statement)
+            for obj in self.cursor.fetchall():
+                checklist.append(obj)
+        except Exception as e:
+            print(e)
         return checklist
 
     def get_full_scan_output(self, checklist_id):
