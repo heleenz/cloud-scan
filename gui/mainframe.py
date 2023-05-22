@@ -5,6 +5,20 @@ import json
 import os
 from awsconnect import AWSCredentialsWindow
 import threading
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+# DASHBOARD data
+dashboard_table_count = 0
+severity_data = {}
+severity_data['High'] = 0
+severity_data['Medium'] = 0
+severity_data['Low'] = 0
+ec2_severities = {'High': 0, 'Medium': 0, 'Low': 0}
+s3_severities = {'High': 0, 'Medium': 0, 'Low': 0}
+services_data = {}
+services_data['EC2'] = 0
+services_data['S3'] = 0
 
 # CHECKLIST PROCESSING
 # Load list of services for Checklist combobox
@@ -13,8 +27,27 @@ data = {"operation": "get_list_of_services"}
 tmp = connect(operation, json.dumps(data))
 services_list = json.loads(tmp)
 service_checklist = []
-list_of_lists = []
 
+
+def draw_dashboard_canvas(chart, chart_data):
+    if chart == "severity":
+        severity_data['High'] += chart_data['High']
+        severity_data['Medium'] += chart_data['Medium']
+        severity_data['Low'] += chart_data['Low']
+
+        severity_ax.clear()
+        severity_ax.bar(list(severity_data.keys()), list(severity_data.values()))
+        severity_canvas.draw()
+    if chart == "services":
+        services_ax.clear()
+        services_ax.pie(list(chart_data.values()), labels=list(chart_data.keys()), autopct='%1.1f%%')
+        services_canvas.draw()
+
+def update_dashboard_summary():
+    total_misconf = 0
+    for k, v in services_data.items():
+        total_misconf += v
+    misconfig_count_label.configure(text=total_misconf)
 
 # Load checklist for selected service
 def show_selected(event):
@@ -28,7 +61,7 @@ def show_selected(event):
     tmp = connect(operation, json.dumps(data))
     service_checklist = json.loads(tmp)
 
-    global list_of_lists
+    list_of_lists = []
 
     for obj in service_checklist:
         obj_text = "\t" + obj[0] + "\n" + obj[1]
@@ -91,18 +124,90 @@ def ec2_misconfiguration():
     operation = "ec2_misconfiguration"
     data = {"operation": "ec2_misconfiguration", "access_key": access_key, "secret_key": secret_key}
     tmp = connect(operation, json.dumps(data))
-    # json.loads(tmp)
-    # ec2_misconfig_lbl["text"] = tmp
-    # print(json.loads(tmp))
     count = 0
+    global dashboard_table_count
+    global ec2_severities
 
-    # Delete old records
+    # Delete old records from scan tab
     for record in ec2_misconfig_table.get_children():
         ec2_misconfig_table.delete(record)
-    # Add records to table
+
+    for record in dashboard_misconfig_table.get_children():
+        service = str(dashboard_misconfig_table.item(record, "values")[0])
+        if service == "EC2":
+            dashboard_misconfig_table.delete(record)
+
+    # Renew severities count
+    severity_data['High'] -= ec2_severities['High']
+    severity_data['Medium'] -= ec2_severities['Medium']
+    severity_data['Low'] -= ec2_severities['Low']
+    ec2_severities['High'] = 0
+    ec2_severities['Medium'] = 0
+    ec2_severities['Low'] = 0
+
+    # Add records to table in scan and dashboard
     for record in json.loads(tmp):
         ec2_misconfig_table.insert(parent='', index='end', iid=count, text="", values=(record[0], record[-1]))
         count += 1
+        dashboard_misconfig_table.insert(parent='', index='end', iid=dashboard_table_count, text="", values=("EC2", record[0], record[-1]))
+        dashboard_table_count += 1
+        if record[-1] == "High":
+            ec2_severities['High'] += 1
+        elif record[-1] == "Medium":
+            ec2_severities['Medium'] += 1
+        else:
+            ec2_severities['Low'] += 1
+    draw_dashboard_canvas("severity", ec2_severities)
+    services_data['EC2'] = len(json.loads(tmp))
+    draw_dashboard_canvas("services", services_data)
+    update_dashboard_summary()
+
+
+def s3_misconfiguration():
+    access_key = os.environ['AWS_ACCESS_KEY_ID']
+    secret_key = os.environ['AWS_SECRET_ACCESS_KEY']
+    operation = "s3_misconfiguration"
+    data = {"operation": "s3_misconfiguration", "access_key": access_key, "secret_key": secret_key}
+    tmp = connect(operation, json.dumps(data))
+    count = 0
+    global dashboard_table_count
+    global s3_severities
+
+    # Delete old records
+    for record in s3_misconfig_table.get_children():
+        s3_misconfig_table.delete(record)
+
+    for record in dashboard_misconfig_table.get_children():
+        service = str(dashboard_misconfig_table.item(record, "values")[0])
+        if service == "S3":
+            dashboard_misconfig_table.delete(record)
+
+    # Renew severities count
+    severity_data['High'] -= s3_severities['High']
+    severity_data['Medium'] -= s3_severities['Medium']
+    severity_data['Low'] -= s3_severities['Low']
+    s3_severities['High'] = 0
+    s3_severities['Medium'] = 0
+    s3_severities['Low'] = 0
+
+    # Add records to table
+    for record in json.loads(tmp):
+        s3_misconfig_table.insert(parent='', index='end', iid=count, text="", values=(record[0], record[-1]))
+        count += 1
+        dashboard_misconfig_table.insert(parent='', index='end', iid=dashboard_table_count, text="",
+                                         values=("S3", record[0], record[-1]))
+        dashboard_table_count += 1
+
+        if record[-1] == "High":
+            s3_severities['High'] += 1
+        elif record[-1] == "Medium":
+            s3_severities['Medium'] += 1
+        else:
+            s3_severities['Low'] += 1
+    draw_dashboard_canvas("severity", s3_severities)
+    services_data['S3'] = len(json.loads(tmp))
+    draw_dashboard_canvas("services", services_data)
+    update_dashboard_summary()
 
 
 def select_scan():
@@ -129,35 +234,118 @@ credentials_window.show()
 # Create main window
 root = Tk()
 root.title("Cloud Scanner")
-root.geometry("900x500")
+root.geometry("1000x750")
 
 
 # Create tab bar
 notebook = ttk.Notebook()
 notebook.pack(expand=1, fill="both", anchor="center")
 
-# Main tab
-main = ttk.Frame(notebook, borderwidth=1, relief="solid", padding=10)
-lbl0 = ttk.Label(main, text="MAIN")
+
+# Dashboard tab
+dashboard = ttk.Frame(notebook, padding=10)
+lbl0 = ttk.Label(dashboard)
 lbl0.pack()
-main.pack(expand=1, fill="both", padx=5, pady=5)
+dashboard.pack(expand=1, fill="both", padx=5, pady=5)
+
+# Header
+header_label = ttk.Label(dashboard, text="Security Scanner", font=("Arial", 16, "bold"))
+header_label.pack(pady=10)
+
+# Summary
+summary_frame = Frame(dashboard)
+summary_frame.pack(side=TOP, fill=X)
+
+resources_label = Label(summary_frame, text="Total Scanned Resources:")
+resources_label.pack(side=LEFT)
+
+resources_count_label = Label(summary_frame, text="0")  # Replace with actual count
+resources_count_label.pack(side=LEFT, padx=5)
+
+misconfig_label = Label(summary_frame, text="Total Misconfigurations:")
+misconfig_label.pack(side=LEFT)
+
+misconfig_count_label = Label(summary_frame, text="0")  # Replace with actual count
+misconfig_count_label.pack(side=LEFT, padx=5)
+
+misconfig_frame = Frame(dashboard, width=600)
+misconfig_frame.pack(side=LEFT, fill=BOTH, expand=1, padx=10, pady=10)
+# Misconfigurations Table
+dashboard_misconfig_table = ttk.Treeview(misconfig_frame)
+# Define columns
+dashboard_misconfig_table['columns'] = ("Service", "Misconfiguration", "Severity level")
+# Formate columns
+dashboard_misconfig_table.column("#0", width=0, stretch=NO)
+dashboard_misconfig_table.column("Service", anchor="w", width=50, minwidth=40)
+dashboard_misconfig_table.column("Misconfiguration", anchor="w", width=520, minwidth=80)
+dashboard_misconfig_table.column("Severity level", anchor="e", width=60, minwidth=50)
+# Create headings
+dashboard_misconfig_table.heading("#0", text="", anchor="w")
+dashboard_misconfig_table.heading("Service", text="Service", anchor="w")
+dashboard_misconfig_table.heading("Misconfiguration", text="Misconfiguration", anchor="w")
+dashboard_misconfig_table.heading("Severity level", text="Severity level", anchor="w")
+
+dashboard_misconfig_table.pack(side=LEFT, fill="both", expand=1)
+
+
+# Charts Frame
+charts_frame = Frame(dashboard, width=300)
+charts_frame.pack(side=LEFT, fill=BOTH, padx=10, pady=10)
+
+# Bar Chart - Misconfigurations by Severity
+severity_frame = Frame(charts_frame)
+severity_frame.pack()
+
+severity_label = Label(severity_frame, text="Misconfigurations by Severity:")
+severity_label.pack()
+
+# Create a horizontal bar chart using Matplotlib
+severity_fig = plt.Figure(figsize=(6, 4), dpi=100)
+severity_ax = severity_fig.add_subplot(111)
+severity_ax.set_xlabel("Severity")
+severity_ax.set_ylabel("Count")
+severity_ax.bar(list(severity_data.keys()), list(severity_data.values()))
+severity_canvas = FigureCanvasTkAgg(severity_fig, master=severity_frame)
+severity_canvas.draw()
+severity_canvas.get_tk_widget().pack(fill=X, padx=5)
+
+
+# Pie Chart - Misconfigurations by Services
+services_frame = Frame(charts_frame)
+services_frame.pack()
+
+services_label = Label(services_frame, text="Misconfigurations by Services:")
+services_label.pack()
+
+# Create a pie chart using Matplotlib
+services_fig = plt.Figure(figsize=(6, 4), dpi=100)
+services_ax = services_fig.add_subplot(111)
+# services_ax.pie(list(services_data.values()), labels=list(services_data.keys()), autopct='%1.1f%%')
+services_canvas = FigureCanvasTkAgg(services_fig, master=services_frame)
+# services_canvas.draw()
+services_canvas.get_tk_widget().pack(fill=X, padx=5)
+
+# Footer
+footer_label = ttk.Label(dashboard, text="© 2023 Security Scanner App. All rights reserved.")
+footer_label.pack(side="bottom", pady=10)
+
 
 # Scan tab
-scan = ttk.Frame(notebook, borderwidth=1, relief="solid", padding=10)
-lbl1 = ttk.Label(scan, text="SCAN")
+scan = ttk.Frame(notebook)
+lbl1 = ttk.Label(scan)
 lbl1.pack()
 scan.pack(expand=1, fill="both", padx=5, pady=5)
 
-scan_notebook = ttk.Notebook(scan)
+scan_notebook = ttk.Notebook(scan, padding=5)
 scan_notebook.pack(expand=1, fill="both", anchor="center")
 
-scan_ec2 = ttk.Frame(scan_notebook, borderwidth=1, relief="solid", padding=10)
-scan_s3 = ttk.Frame(scan_notebook, borderwidth=1, relief="solid", padding=10)
-scan_iam = ttk.Frame(scan_notebook, borderwidth=1, relief="solid", padding=10)
+scan_ec2 = ttk.Frame(scan_notebook, padding=5)
+scan_s3 = ttk.Frame(scan_notebook, padding=5)
+scan_iam = ttk.Frame(scan_notebook, padding=5)
 
-scan_ec2.pack(expand=1, fill="both", padx=5, pady=5)
-scan_s3.pack(expand=1, fill="both", padx=5, pady=5)
-scan_iam.pack(expand=1, fill="both", padx=5, pady=5)
+scan_ec2.pack(expand=1, fill="both")
+scan_s3.pack(expand=1, fill="both")
+scan_iam.pack(expand=1, fill="both")
 
 scan_notebook.add(scan_ec2, text="EC2")
 scan_notebook.add(scan_s3, text="S3")
@@ -174,8 +362,8 @@ ec2_misconfig_btn = ttk.Radiobutton(scan_ec2, text=misconfig, value=misconfig, v
 ec2_enum_btn.pack(anchor="w")
 ec2_misconfig_btn.pack(anchor="w")
 
-# Enumeration Frame
-ec2_enum_frame = ttk.Frame(scan_ec2, borderwidth=1, relief="solid")
+# EC2 Enumeration Frame
+ec2_enum_frame = ttk.Frame(scan_ec2)
 ec2_lbl = ttk.Label(ec2_enum_frame, text="Instance ID: ")
 ec2_lbl.grid(row=0, column=0, sticky="w")
 ec2_entry = ttk.Entry(ec2_enum_frame)
@@ -186,8 +374,8 @@ ec2_enum_lbl = ttk.Label(ec2_enum_frame, text="Result will be here", padding=10)
 ec2_enum_lbl.grid(row=3, column=0, sticky="w", columnspan=3)
 ec2_enum_frame.pack(expand=1, fill="both")
 
-# Misconf frame
-ec2_misconfig_frame = ttk.Frame(scan_ec2, borderwidth=1, relief="solid")
+# EC2 Misconf frame
+ec2_misconfig_frame = ttk.Frame(scan_ec2)
 ec2_btn2 = ttk.Button(ec2_misconfig_frame, text="Start Check", command=lambda: threading.Thread(target=ec2_misconfiguration).start())
 ec2_btn2.grid(row=0, column=0, sticky="w")
 ec2_misconfig_lbl = ttk.Label(ec2_misconfig_frame, padding=10)
@@ -198,19 +386,102 @@ ec2_misconfig_table = ttk.Treeview(ec2_misconfig_frame)
 ec2_misconfig_table['columns'] = ("Misconfiguration", "Severity level")
 # Formate columns
 ec2_misconfig_table.column("#0", width=0, stretch=NO)
-ec2_misconfig_table.column("Misconfiguration", anchor="w", width=350, minwidth=80)
+ec2_misconfig_table.column("Misconfiguration", anchor="w", width=600, minwidth=80)
 ec2_misconfig_table.column("Severity level", anchor="e", width=100, minwidth=50)
 # Create headings
 ec2_misconfig_table.heading("#0", text="", anchor="w")
 ec2_misconfig_table.heading("Misconfiguration", text="Misconfiguration", anchor="w")
 ec2_misconfig_table.heading("Severity level", text="Severity level", anchor="w")
 
-ec2_misconfig_table.grid(row=2, column=0)
+ec2_misconfig_table.grid(row=2, column=0, sticky=N)
+
+# Text widget for the scan report
+report_text = Text(ec2_misconfig_frame, height=20, width=80)
+report_text.grid(padx=5, row=2, column=1, sticky=N)
+
+# Example scan report
+sample_report = """
+=== Security Scan Report ===
+
+Scan ID: SCAN-001
+Date: 2023-05-01
+Target: EC2 Instance (i-1234567890abcdef0)
+
+Summary:
+- Unrestricted SSH Access: Port 22 is open to the public.
+- Unencrypted AMI: The AMI used by the instance is not encrypted.
+- Insecure Security Group: Security Group SG-12345678 allows unrestricted inbound access to all ports.
+
+Recommendations:
+- Restrict SSH access by allowing only specific IP addresses or IP ranges.
+- Use encrypted AMIs to ensure data-at-rest encryption.
+- Review and tighten the security group rules to limit access to necessary ports and sources.
+
+"""
+
+# Insert the sample report into the text widget
+report_text.insert(END, sample_report)
+
+# Disable editing of the report text
+report_text.config(state=DISABLED)
+
+
+# S3 Misconfiguration Frame
+s3_misconfig_frame = ttk.Frame(scan_s3)
+s3_misconfig_frame.pack(expand=1, fill="both")
+s3_btn2 = ttk.Button(s3_misconfig_frame, text="Start Check", command=lambda: threading.Thread(target=s3_misconfiguration).start())
+s3_btn2.grid(row=0, column=0, sticky="w")
+s3_misconfig_lbl = ttk.Label(s3_misconfig_frame, padding=10)
+s3_misconfig_lbl.grid(row=1, column=0, sticky="w")
+# Output table
+s3_misconfig_table = ttk.Treeview(s3_misconfig_frame)
+# Define columns
+s3_misconfig_table['columns'] = ("Misconfiguration", "Severity level")
+# Formate columns
+s3_misconfig_table.column("#0", width=0, stretch=NO)
+s3_misconfig_table.column("Misconfiguration", anchor="w", width=520, minwidth=80)
+s3_misconfig_table.column("Severity level", anchor="e", width=100, minwidth=50)
+# Create headings
+s3_misconfig_table.heading("#0", text="", anchor="w")
+s3_misconfig_table.heading("Misconfiguration", text="Misconfiguration", anchor="w")
+s3_misconfig_table.heading("Severity level", text="Severity level", anchor="w")
+
+s3_misconfig_table.grid(row=2, column=0, sticky=N)
+
+# Text widget for the scan report
+report_text = Text(s3_misconfig_frame, height=20, width=80)
+report_text.grid(padx=5, row=2, column=1, sticky=N)
+
+# Example scan report
+sample_report = """
+=== Security Scan Report ===
+
+Scan ID: SCAN-001
+Date: 2023-05-01
+Target: EC2 Instance (i-1234567890abcdef0)
+
+Summary:
+- Unrestricted SSH Access: Port 22 is open to the public.
+- Unencrypted AMI: The AMI used by the instance is not encrypted.
+- Insecure Security Group: Security Group SG-12345678 allows unrestricted inbound access to all ports.
+
+Recommendations:
+- Restrict SSH access by allowing only specific IP addresses or IP ranges.
+- Use encrypted AMIs to ensure data-at-rest encryption.
+- Review and tighten the security group rules to limit access to necessary ports and sources.
+
+"""
+
+# Insert the sample report into the text widget
+report_text.insert(END, sample_report)
+
+# Disable editing of the report text
+report_text.config(state=DISABLED)
 
 
 # Checklist tab
-check_list = ttk.Frame(notebook, borderwidth=1, relief="solid", padding=[10, 10, 0, 0])
-lbl2 = ttk.Label(check_list, text="CHECKLIST")
+check_list = ttk.Frame(notebook, padding=[10, 10, 0, 0])
+lbl2 = ttk.Label(check_list)
 lbl2.pack()
 check_list.pack(expand=1, fill="both")
 
@@ -229,14 +500,50 @@ info_frame.pack(expand=1, fill="both")
 
 
 # History tab
-history = ttk.Frame(notebook, borderwidth=1, relief="solid", padding=10)
-lbl3 = ttk.Label(history, text="HISTORY")
+history = ttk.Frame(notebook, padding=10)
+lbl3 = ttk.Label(history)
 lbl3.pack()
 history.pack(expand=1, fill="both", padx=5, pady=5)
 
+# Header
+header_label = ttk.Label(history, text="History", font=("Arial", 16, "bold"))
+header_label.pack(pady=10)
+
+# Treeview to display scan history
+history_treeview = ttk.Treeview(history)
+history_treeview["columns"] = ("Scan ID", "Date", "Status")
+history_treeview.column("#0", width=0, stretch=NO)
+history_treeview.column("Scan ID", anchor=CENTER, width=100)
+history_treeview.column("Date", anchor=CENTER, width=150)
+history_treeview.column("Status", anchor=CENTER, width=100)
+
+history_treeview.heading("Scan ID", text="Scan ID")
+history_treeview.heading("Date", text="Date")
+history_treeview.heading("Status", text="Status")
+
+# Insert sample data into the treeview
+history_treeview.insert("", "end", text="1", values=("SCAN-001", "2023-05-01", "Completed"))
+history_treeview.insert("", "end", text="2", values=("SCAN-002", "2023-05-05", "Completed"))
+history_treeview.insert("", "end", text="3", values=("SCAN-003", "2023-05-10", "In Progress"))
+
+history_treeview.pack(pady=10)
+
+# Button for viewing scan details
+view_details_button = ttk.Button(history, text="View Details")
+view_details_button.pack(pady=10)
+
+# Button for deleting selected scan
+delete_scan_button = ttk.Button(history, text="Delete Scan")
+delete_scan_button.pack(pady=10)
+
+# Footer
+footer_label = ttk.Label(history, text="© 2023 Security Scanner App. All rights reserved.")
+footer_label.pack(side=BOTTOM, pady=10)
+
+
 # Settings tab
-settings = ttk.Frame(notebook, borderwidth=1, relief="solid", padding=10)
-lbl4 = ttk.Label(settings, text="SETTINGS")
+settings = ttk.Frame(notebook, padding=10)
+lbl4 = ttk.Label(settings)
 lbl4.pack()
 settings.pack(expand=1, fill="both", padx=5, pady=5)
 
@@ -250,7 +557,7 @@ set_credentials_btn = ttk.Button(settings, text="Change credentials", command=se
 set_credentials_btn.pack(anchor="w")
 
 # Adding all tabs to notebook
-notebook.add(main, text="Main")
+notebook.add(dashboard, text="Dashboard")
 notebook.add(scan, text="Scan")
 notebook.add(check_list, text="Checklist")
 notebook.add(history, text="History")

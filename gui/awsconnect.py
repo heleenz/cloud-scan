@@ -39,13 +39,13 @@ class AWSCredentialsWindow:
         submit_button.place(x=20, y=130, width=360, height=50)
 
     def submit_credentials(self):
-        access_key = self.access_key_entry.get()
-        secret_key = self.secret_key_entry.get()
+        access_key = self.access_key_entry.get().strip()
+        secret_key = self.secret_key_entry.get().strip()
 
         access_key_regex = re.compile(r'(?<![A-Z0-9])[A-Z0-9]{20}(?![A-Z0-9])')
         secret_key_regex = re.compile(r'(?<![A-Za-z0-9/+=])[A-Za-z0-9/+=]{40}(?![A-Za-z0-9/+=])')
 
-        if access_key_regex.match(access_key) and secret_key_regex.match(secret_key):
+        if len(access_key) == 20 and len(secret_key) == 40 and access_key_regex.match(access_key) and secret_key_regex.match(secret_key):
             print("Input validated!")
             os.environ['AWS_ACCESS_KEY_ID'] = access_key
             os.environ['AWS_SECRET_ACCESS_KEY'] = secret_key

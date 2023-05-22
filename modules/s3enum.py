@@ -4,7 +4,7 @@ from botocore.exceptions import ClientError
 # replace with your bucket name
 bucket_name = '1908rbucket1'
 
-s3 = boto3.client('s3')
+s3 = boto3.client('s3', aws_access_key_id="AKIAVN2VQDPCI5SDRBVL", aws_secret_access_key="pf5s0GBh46eEJyw15k924iztV6WoMH2AqBe/yCOZ")
 
 response = s3.get_bucket_acl(Bucket=bucket_name)
 print(f"Bucket ACL for {bucket_name}: {response['Grants']}")

@@ -1,6 +1,5 @@
 import boto3
 
-
 def ec2_misconfiguration(key_id, secret_key):
     output_list = []
     check_result = {}
@@ -198,3 +197,6 @@ def ec2_misconfiguration(key_id, secret_key):
                 output_list.append(result_tuple)
 
     return output_list
+
+
+# ec2_misconfiguration('AKIAVN2VQDPCI5SDRBVL', 'pf5s0GBh46eEJyw15k924iztV6WoMH2AqBe/yCOZ')

@@ -2,6 +2,8 @@ import json
 from dbmanager import DBManager
 from modules.ec2enum import ec2_enumeration
 from modules.ec2misconfig import ec2_misconfiguration
+from modules.ec2misconfig_updated import ec2_misconfig
+from modules.s3misconfig import s3_misconfig
 
 
 def client_thread(con):
@@ -19,6 +21,7 @@ def client_thread(con):
     elif pd["operation"] == "get_service_checklist":
         checklist = db.get_service_checklist(pd["service"])
         pd = json.dumps(checklist)
+        print("TO CLIENT: ", pd)
         con.send(pd.encode())
 
     elif pd["operation"] == "ec2_enumeration":
@@ -30,15 +33,45 @@ def client_thread(con):
 
         con.send(pd.encode())
 
+    # elif pd["operation"] == "ec2_misconfiguration":
+    #     key_id = pd["access_key"]
+    #     secret_key = pd["secret_key"]
+    #     scan_output = ec2_misconfiguration(key_id, secret_key)
+    #     pd = []
+    #     for i in range(len(scan_output)):
+    #         if scan_output[i][-2] == 1:
+    #             result = db.get_full_scan_output(scan_output[i][0])
+    #             pd.append([scan_output[i][-1], result[0][0], result[0][1], result[0][2]])
+    #     pd = json.dumps(pd)
+    #     con.send(pd.encode())
+
     elif pd["operation"] == "ec2_misconfiguration":
         key_id = pd["access_key"]
         secret_key = pd["secret_key"]
-        scan_output = ec2_misconfiguration(key_id, secret_key)
+        scan_output = ec2_misconfig(key_id, secret_key)
         pd = []
         for i in range(len(scan_output)):
-            if scan_output[i][-2] == 1:
+            if scan_output[i][0] == 0 and len(scan_output[i]) == 3:
+                result = db.get_full_scan_output(scan_output[i][1])
+            else:
                 result = db.get_full_scan_output(scan_output[i][0])
-                pd.append([scan_output[i][-1], result[0][0], result[0][1], result[0][2]])
+            pd.append([scan_output[i][-1], result[0][0], result[0][1], result[0][2]])
+
+        pd = json.dumps(pd)
+        con.send(pd.encode())
+
+    elif pd["operation"] == "s3_misconfiguration":
+        key_id = pd["access_key"]
+        secret_key = pd["secret_key"]
+        scan_output = s3_misconfig(key_id, secret_key)
+        pd = []
+        for i in range(len(scan_output)):
+            if scan_output[i][0] == 0 and len(scan_output[i]) == 3:
+                result = db.get_full_scan_output(scan_output[i][1])
+            else:
+                result = db.get_full_scan_output(scan_output[i][0])
+            pd.append([scan_output[i][-1], result[0][0], result[0][1], result[0][2]])
+
         pd = json.dumps(pd)
         con.send(pd.encode())
 
