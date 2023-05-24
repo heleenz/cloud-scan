@@ -1,3 +1,4 @@
+from datetime import datetime
 from tkinter import *
 from tkinter import ttk
 from main import connect
@@ -8,6 +9,13 @@ import threading
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+# Colors
+colors = ["#f4516c", "#ffb822", "#34bfa3"]
+colors_severity = ["#fab7c2", "#ffdf99", "#afe9dd"]
+# SCAN data
+scan_id = 0
+# History data
+history_count = 0
 # DASHBOARD data
 dashboard_table_count = 0
 severity_data = {}
@@ -35,7 +43,7 @@ service_checklist = []
 
 def draw_dashboard_canvas(chart, chart_data):
     if chart == "severity":
-        colors = ["#f4516c", "#ffb822", "#34bfa3"]
+        global colors
 
         severity_data['High'] += chart_data['High']
         severity_data['Medium'] += chart_data['Medium']
@@ -68,46 +76,88 @@ def show_selected(event):
     data = {"operation": "get_service_checklist", "service": selected_service}
     tmp = connect(operation, json.dumps(data))
     service_checklist = json.loads(tmp)
+    print(service_checklist)
 
-    list_of_lists = []
+    for item in checklist_table.get_children():
+        checklist_table.delete(item)
 
-    for obj in service_checklist:
-        obj_text = "\t" + obj[0] + "\n" + obj[1]
-        list_of_lists.append(obj_text)
 
-    print(list_of_lists)
 
-    # Remove existing widgets
-    try:
-        print(info_frame.winfo_children())
-        if len(info_frame.winfo_children()) >= 2:
-            for widget in info_frame.winfo_children():
-                widget.destroy()
-        print(info_frame.winfo_children())
-    except Exception as e:
-        print("Couldn't destroy widgets: ", e)
+    for item in service_checklist:
+        checklist_table.insert("", "end", text="", values=(item[0], item[1], item[2]), tags=item[2])
 
-    # Scrollbar for checklist
-    # 1)Create a canvas
-    canvas = Canvas(info_frame)
-    canvas.pack(side="left", fill="both", expand=1)
-    # 2)Add a scrollbar to the canvas
-    scroll = ttk.Scrollbar(info_frame, orient="vertical", command=canvas.yview)
-    scroll.pack(side="right", fill="y")
-    # 3)Configure the canvas
-    canvas.configure(yscrollcommand=scroll.set)
-    canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-    # 4)Create another frame inside the canvas
-    inner_frame = ttk.Frame(canvas)
-    # 5)Add that new frame to a window in the canvas
-    canvas.create_window((0, 0), window=inner_frame, anchor="nw")
+def create_report_file(report_data, target, scan_id):
+    file_name = f"SCAN-{scan_id}.txt"
+    folder_path = os.path.join(os.path.dirname(__file__), "..", "reports")
+    file_path = os.path.join(folder_path, file_name)
+    with open(file_path, "w") as file:
+        file.write(report_data)
 
-    for thing in service_checklist:
-        index = service_checklist.index(thing)
-        Label(inner_frame, text=list_of_lists[index], wraplength=800, background="#FFFFFF").grid(row=index, sticky="ew",
-                                                                                                 column=0, pady=10,
-                                                                                                 ipadx=5, ipady=5)
+    print("Report file created and saved as", file_name)
 
+
+def generate_security_scan_report(scan_id, date, target, summary, recommendations):
+    report = f"=== Security Scan Report ===\n\n"
+    report += f"Scan ID: {scan_id}\n"
+    report += f"Date: {date}\n"
+    report += f"Target: {target}\n\n"
+    report += f"Summary:\n"
+
+    for i, item in enumerate(summary, start=1):
+        report += f"- {item}\n"
+
+    report += f"\nRecommendations:\n"
+
+    for i, item in enumerate(recommendations, start=1):
+        report += f"{i}. {item}\n"
+
+    # Create report file
+    create_report_file(report, target, scan_id)
+
+    return report
+
+
+def open_report():
+    selected_item = history_treeview.selection()  # Get the selected item
+    id = history_treeview.item(selected_item)["values"][0]  # Extract the ID value
+    print("Open file " + id)
+    file_name = id + ".txt"
+    folder_path = os.path.join(os.path.dirname(__file__), "..", "reports")
+    file_path = os.path.join(folder_path, file_name)
+    if os.path.exists(file_path):
+        os.startfile(file_path)  # Open the file with the default application
+    else:
+        print(f"Scan report with ID {id} does not exist.")
+
+
+def delete_report():
+    selected_item = history_treeview.selection()  # Get the selected item
+    id = history_treeview.item(selected_item)["values"][0]  # Extract the ID value
+    file_name = id + ".txt"  # File name based on ID
+    folder_path = os.path.join(os.path.dirname(__file__), "..", "reports")
+    file_path = os.path.join(folder_path, file_name)
+    if os.path.exists(file_path):
+        # Remove the record from the history TreeView
+        history_treeview.delete(selected_item)
+        os.remove(file_path)  # Delete the report file
+        print(f"Scan report with ID {id} deleted successfully.")
+    else:
+        print(f"Scan report with ID {id} does not exist.")
+
+
+def write_history(id, date, status):
+    # Insert sample data into the treeview
+    global history_count
+    history_count += 1
+    history_treeview.insert("", "end", text="history_count", values=(f"SCAN-{id}", date, status))
+
+
+def update_status_by_id(id_value, new_status):
+    for item in history_treeview.get_children():
+        if history_treeview.item(item)["values"][0] == f"SCAN-{id_value}":
+            history_treeview.item(item, values=(f"SCAN-{id_value}", history_treeview.item(item)["values"][1], new_status))
+            print("Status updated successfully.")
+            return
 
 def ec2_enumeration():
     # importing aws credentials
@@ -134,6 +184,12 @@ def ec2_misconfiguration():
     count = 0
     global dashboard_table_count
     global ec2_severities
+    global scan_id
+    scan_id += 1
+    date = datetime.now()
+    target = "EC2"
+
+    write_history(scan_id, datetime.now().date(), "In Progress")
 
     # Delete old records from scan tab
     for record in ec2_misconfig_table.get_children():
@@ -169,6 +225,24 @@ def ec2_misconfiguration():
     draw_dashboard_canvas("services", services_data)
     update_dashboard_summary()
 
+    # Generate report
+    summary = []
+    recommendations = []
+    for record in json.loads(tmp):
+        summary.append(f"{record[1]}: {record[0]}")
+        recommendations.append(record[2])
+    report = generate_security_scan_report(scan_id, date, target, summary, recommendations)
+
+    ec2_report_text.config(state=NORMAL)
+    ec2_report_text.delete("1.0", "end")
+    # Insert the report into the text widget
+    ec2_report_text.insert(END, report)
+    # Disable editing of the report text
+    ec2_report_text.config(state=DISABLED)
+
+    # Update scan status to Completed
+    update_status_by_id(scan_id, "Completed")
+
 
 def s3_misconfiguration():
     access_key = os.environ['AWS_ACCESS_KEY_ID']
@@ -179,6 +253,12 @@ def s3_misconfiguration():
     count = 0
     global dashboard_table_count
     global s3_severities
+    global scan_id
+    scan_id += 1
+    date = datetime.now()
+    target = "S3"
+
+    write_history(scan_id, datetime.now().date(), "In Progress")
 
     # Delete old records
     for record in s3_misconfig_table.get_children():
@@ -216,6 +296,25 @@ def s3_misconfiguration():
     draw_dashboard_canvas("services", services_data)
     update_dashboard_summary()
 
+    # Generate report
+    summary = []
+    recommendations = []
+    for record in json.loads(tmp):
+        summary.append(f"{record[1]}: {record[0]}")
+        recommendations.append(record[2])
+    report = generate_security_scan_report(scan_id, date, target, summary, recommendations)
+
+    s3_report_text.config(state=NORMAL)
+    s3_report_text.delete("1.0", "end")
+    # Insert the report into the text widget
+    s3_report_text.insert(END, report)
+    # Disable editing of the report text
+    s3_report_text.config(state=DISABLED)
+
+    # Update scan status to Completed
+    update_status_by_id(scan_id, "Completed")
+
+
 def sg_misconfiguration():
     access_key = os.environ['AWS_ACCESS_KEY_ID']
     secret_key = os.environ['AWS_SECRET_ACCESS_KEY']
@@ -225,6 +324,12 @@ def sg_misconfiguration():
     count = 0
     global dashboard_table_count
     global sg_severities
+    global scan_id
+    scan_id += 1
+    date = datetime.now()
+    target = "Security Groups"
+
+    write_history(scan_id, datetime.now().date(), "In Progress")
 
     # Delete old records
     for record in sg_misconfig_table.get_children():
@@ -262,6 +367,24 @@ def sg_misconfiguration():
     draw_dashboard_canvas("services", services_data)
     update_dashboard_summary()
 
+    # Generate report
+    summary = []
+    recommendations = []
+    for record in json.loads(tmp):
+        summary.append(f"{record[1]}: {record[0]}")
+        recommendations.append(record[2])
+    report = generate_security_scan_report(scan_id, date, target, summary, recommendations)
+
+    sg_report_text.config(state=NORMAL)
+    sg_report_text.delete("1.0", "end")
+    # Insert the report into the text widget
+    sg_report_text.insert(END, report)
+    # Disable editing of the report text
+    sg_report_text.config(state=DISABLED)
+
+    # Update scan status to Completed
+    update_status_by_id(scan_id, "Completed")
+
 
 def iam_misconfiguration():
     access_key = os.environ['AWS_ACCESS_KEY_ID']
@@ -272,6 +395,12 @@ def iam_misconfiguration():
     count = 0
     global dashboard_table_count
     global iam_severities
+    global scan_id
+    scan_id += 1
+    date = datetime.now()
+    target = "IAM"
+
+    write_history(scan_id, datetime.now().date(), "In Progress")
 
     # Delete old records
     for record in iam_misconfig_table.get_children():
@@ -308,6 +437,24 @@ def iam_misconfiguration():
     services_data['IAM'] = len(json.loads(tmp))
     draw_dashboard_canvas("services", services_data)
     update_dashboard_summary()
+
+    # Generate report
+    summary = []
+    recommendations = []
+    for record in json.loads(tmp):
+        summary.append(f"{record[1]}: {record[0]}")
+        recommendations.append(record[2])
+    report = generate_security_scan_report(scan_id, date, target, summary, recommendations)
+
+    iam_report_text.config(state=NORMAL)
+    iam_report_text.delete("1.0", "end")
+    # Insert the report into the text widget
+    iam_report_text.insert(END, report)
+    # Disable editing of the report text
+    iam_report_text.config(state=DISABLED)
+
+    # Update scan status to Completed
+    update_status_by_id(scan_id, "Completed")
 
 
 def select_scan():
@@ -420,9 +567,7 @@ services_label.pack()
 # Create a pie chart using Matplotlib
 services_fig = plt.Figure(figsize=(6, 4), dpi=100)
 services_ax = services_fig.add_subplot(111)
-# services_ax.pie(list(services_data.values()), labels=list(services_data.keys()), autopct='%1.1f%%')
 services_canvas = FigureCanvasTkAgg(services_fig, master=services_frame)
-# services_canvas.draw()
 services_canvas.get_tk_widget().pack(fill=X, padx=5)
 
 # Footer
@@ -499,34 +644,8 @@ ec2_misconfig_table.heading("Severity level", text="Severity level", anchor="w")
 ec2_misconfig_table.grid(row=2, column=0, sticky=N)
 
 # Text widget for the scan report
-report_text = Text(ec2_misconfig_frame, height=20, width=80)
-report_text.grid(padx=5, row=2, column=1, sticky=N)
-
-# Example scan report
-sample_report = """
-=== Security Scan Report ===
-
-Scan ID: SCAN-001
-Date: 2023-05-01
-Target: EC2 Instance (i-1234567890abcdef0)
-
-Summary:
-- Unrestricted SSH Access: Port 22 is open to the public.
-- Unencrypted AMI: The AMI used by the instance is not encrypted.
-- Insecure Security Group: Security Group SG-12345678 allows unrestricted inbound access to all ports.
-
-Recommendations:
-- Restrict SSH access by allowing only specific IP addresses or IP ranges.
-- Use encrypted AMIs to ensure data-at-rest encryption.
-- Review and tighten the security group rules to limit access to necessary ports and sources.
-
-"""
-
-# Insert the sample report into the text widget
-report_text.insert(END, sample_report)
-
-# Disable editing of the report text
-report_text.config(state=DISABLED)
+ec2_report_text = Text(ec2_misconfig_frame, height=20, width=80)
+ec2_report_text.grid(padx=5, row=2, column=1, sticky=N)
 
 
 # S3 Misconfiguration Frame
@@ -552,34 +671,8 @@ s3_misconfig_table.heading("Severity level", text="Severity level", anchor="w")
 s3_misconfig_table.grid(row=2, column=0, sticky=N)
 
 # Text widget for the scan report
-report_text = Text(s3_misconfig_frame, height=20, width=80)
-report_text.grid(padx=5, row=2, column=1, sticky=N)
-
-# Example scan report
-sample_report = """
-=== Security Scan Report ===
-
-Scan ID: SCAN-001
-Date: 2023-05-01
-Target: EC2 Instance (i-1234567890abcdef0)
-
-Summary:
-- Unrestricted SSH Access: Port 22 is open to the public.
-- Unencrypted AMI: The AMI used by the instance is not encrypted.
-- Insecure Security Group: Security Group SG-12345678 allows unrestricted inbound access to all ports.
-
-Recommendations:
-- Restrict SSH access by allowing only specific IP addresses or IP ranges.
-- Use encrypted AMIs to ensure data-at-rest encryption.
-- Review and tighten the security group rules to limit access to necessary ports and sources.
-
-"""
-
-# Insert the sample report into the text widget
-report_text.insert(END, sample_report)
-
-# Disable editing of the report text
-report_text.config(state=DISABLED)
+s3_report_text = Text(s3_misconfig_frame, height=20, width=80)
+s3_report_text.grid(padx=5, row=2, column=1, sticky=N)
 
 
 # Security Groups scan
@@ -604,6 +697,10 @@ sg_misconfig_table.heading("Severity level", text="Severity level", anchor="w")
 
 sg_misconfig_table.grid(row=2, column=0, sticky=N)
 
+# Text widget for the scan report
+sg_report_text = Text(sg_misconfig_frame, height=20, width=80)
+sg_report_text.grid(padx=5, row=2, column=1, sticky=N)
+
 
 # IAM scan tab
 iam_misconfig_frame = ttk.Frame(scan_iam)
@@ -627,6 +724,9 @@ iam_misconfig_table.heading("Severity level", text="Severity level", anchor="w")
 
 iam_misconfig_table.grid(row=2, column=0, sticky=N)
 
+# Text widget for the scan report
+iam_report_text = Text(iam_misconfig_frame, height=20, width=80)
+iam_report_text.grid(padx=5, row=2, column=1, sticky=N)
 
 # Checklist tab
 check_list = ttk.Frame(notebook, padding=[10, 10, 0, 0])
@@ -640,12 +740,50 @@ check_list_combobox.bind("<<ComboboxSelected>>", show_selected)
 
 info_frame = ttk.Frame(check_list)
 info_frame.pack(expand=1, fill="both")
+# Create a Treeview widget
+checklist_table = ttk.Treeview(info_frame)
+checklist_table.pack()
 
-# for thing in service_checklist:
-#     index = service_checklist.index(thing)
-#     Label(inner_frame, text=list_of_lists[index], wraplength=820, background="#FFFFFF").grid(row=index, sticky="nw", column=0, pady=10)
-# for thing in range(100):
-# 	Label(inner_frame, text=f'Button {thing} Yo!').grid(row=thing, column=0, pady=10, padx=10)
+# Set the column width (in pixels)
+column_width = 200
+
+# Insert columns
+checklist_table["columns"] = ("title", "description", "severity")
+
+# Define column headings
+checklist_table.heading("#0", text="0")
+checklist_table.heading("title", text="Title")
+checklist_table.heading("description", text="Description")
+checklist_table.heading("severity", text="Severity")
+
+# Configure the column
+checklist_table.column("#0", stretch=NO, width=0, anchor="w")
+checklist_table.column("title", stretch=False, anchor="w", width=column_width)
+checklist_table.column("description", stretch=False, anchor="w")
+checklist_table.column("severity", stretch=False, anchor="w")
+
+checklist_table.tag_configure("High", background=colors_severity[0])
+checklist_table.tag_configure("Medium", background=colors_severity[1])
+checklist_table.tag_configure("Low", background=colors_severity[2])
+
+# Create a Text widget to display the wrapped text
+checklist_text = Text(info_frame, wrap="word")
+checklist_text.pack()
+
+# Get the content of the "title" column for the selected item
+def get_selected_item_text(event):
+    selection = checklist_table.selection()
+    if selection:
+        item = selection[0]
+        values = checklist_table.item(item)["values"]
+        record_text = values[0] + "\n" + values[1]
+
+        checklist_text.delete("1.0", END)
+        checklist_text.insert(END, record_text)
+
+# Bind the selection event to update the Text widget
+checklist_table.bind("<<TreeviewSelect>>", get_selected_item_text)
+
 
 
 # History tab
@@ -670,19 +808,14 @@ history_treeview.heading("Scan ID", text="Scan ID")
 history_treeview.heading("Date", text="Date")
 history_treeview.heading("Status", text="Status")
 
-# Insert sample data into the treeview
-history_treeview.insert("", "end", text="1", values=("SCAN-001", "2023-05-01", "Completed"))
-history_treeview.insert("", "end", text="2", values=("SCAN-002", "2023-05-05", "Completed"))
-history_treeview.insert("", "end", text="3", values=("SCAN-003", "2023-05-10", "In Progress"))
-
 history_treeview.pack(pady=10)
 
 # Button for viewing scan details
-view_details_button = ttk.Button(history, text="View Details")
+view_details_button = ttk.Button(history, text="View Details", command=open_report)
 view_details_button.pack(pady=10)
 
 # Button for deleting selected scan
-delete_scan_button = ttk.Button(history, text="Delete Scan")
+delete_scan_button = ttk.Button(history, text="Delete Scan", command=delete_report)
 delete_scan_button.pack(pady=10)
 
 # Footer

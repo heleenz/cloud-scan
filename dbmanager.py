@@ -16,9 +16,9 @@ class DBManager:
 
     def get_service_checklist(self, service):
         checklist = []
-        statement = "SELECT checklist.title, checklist.description " \
-                    "FROM checklist, aws_services " \
-                    "WHERE aws_services.service_name = '" + service + "' AND checklist.service_id = aws_services.id"
+        statement = "SELECT checklist.title, checklist.description, severity_level.level " \
+                    "FROM checklist, aws_services, severity_level " \
+                    "WHERE aws_services.service_name = '" + service + "' AND checklist.service_id = aws_services.id AND checklist.severity_id = severity_level.id"
         print(statement)
         try:
             self.cursor.execute(statement)

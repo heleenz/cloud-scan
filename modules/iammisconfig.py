@@ -294,9 +294,6 @@ def iam_misconfiguration(key_id, secret_key):
     response = iam.list_roles()
     roles = response['Roles']
 
-    # Define the number of days for service inactivity threshold
-    inactivity_threshold = 30
-
     # Iterate over each role and check for service inactivity
     for role in roles:
         role_name = role['RoleName']
@@ -450,6 +447,3 @@ def iam_misconfiguration(key_id, secret_key):
         pass
 
     return output_list
-
-for item in iam_misconfiguration('AKIAVN2VQDPCI5SDRBVL', 'pf5s0GBh46eEJyw15k924iztV6WoMH2AqBe/yCOZ'):
-    print(item)

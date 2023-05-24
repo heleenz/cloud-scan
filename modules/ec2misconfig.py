@@ -190,13 +190,6 @@ def ec2_misconfiguration(key_id, secret_key):
                 output_list.append(result_tuple)
 
 
-        # # Loop through each outbound rule in the security group
-        # for rule in group['IpPermissionsEgress']:
-        #     # Check if the rule allows unrestricted outbound access
-        #     if ('IpRanges' in rule and len(rule['IpRanges']) == 1 and rule['IpRanges'][0]['CidrIp'] == '0.0.0.0/0' and rule['IpProtocol'] == '-1'):
-        #         # Print the security group for the unrestricted outbound access
-        #         print(f"Security Group '{group['GroupName']}' allows unrestricted outbound access")
-
     check["checklist_id"] = 63
     # Security Group Port Range
     security_groups = ec2.describe_security_groups()
