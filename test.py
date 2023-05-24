@@ -1,53 +1,97 @@
-import tkinter as tk
-from tkinter import ttk
 
-# Create the main window
-window = tk.Tk()
-window.title("Security Scanner - Scan Tab")
+from datetime import datetime, timedelta
 
-# Header
-header_label = tk.Label(window, text="Scan Tab", font=("Arial", 16, "bold"))
-header_label.pack(pady=10)
+import boto3
+key_id, secret_key = ('AKIAVN2VQDPCI5SDRBVL', 'pf5s0GBh46eEJyw15k924iztV6WoMH2AqBe/yCOZ')
+iam = boto3.client('iam', aws_access_key_id=key_id,
+                   aws_secret_access_key=secret_key)
+#
+#
+# def create_password_policy():
+#
+#     # Define the password policy parameters
+#     password_policy = {
+#         'MinimumPasswordLength': 8,
+#         'RequireUppercaseCharacters': True,
+#         'RequireLowercaseCharacters': True,
+#         'RequireNumbers': True,
+#         'RequireSymbols': False,
+#         'PasswordReusePrevention': 5,
+#         'MaxPasswordAge': 90
+#     }
+#
+#     # Create the password policy
+#     iam.update_account_password_policy(**password_policy)
+#
+# # Example usage
+# create_password_policy()
 
-# Text widget for the scan report
-report_text = tk.Text(window, height=20, width=80)
-report_text.pack(padx=10, pady=5)
 
-# Example scan report
-sample_report = """
-=== Security Scan Report ===
 
-Scan ID: SCAN-001
-Date: 2023-05-01
-Target: EC2 Instance (i-1234567890abcdef0)
 
-Summary:
-- Unrestricted SSH Access: Port 22 is open to the public.
-- Unencrypted AMI: The AMI used by the instance is not encrypted.
-- Insecure Security Group: Security Group SG-12345678 allows unrestricted inbound access to all ports.
+def cleanup_inactive_roles():
 
-Recommendations:
-- Restrict SSH access by allowing only specific IP addresses or IP ranges.
-- Use encrypted AMIs to ensure data-at-rest encryption.
-- Review and tighten the security group rules to limit access to necessary ports and sources.
+    # Get all IAM roles
+    response = iam.list_roles()
+    roles = response['Roles']
 
-"""
+    # Iterate over each role and check for inactivity
+    for role in roles:
+        role_name = role['RoleName']
 
-# Insert the sample report into the text widget
-report_text.insert(tk.END, sample_report)
+        # Check if the role has been used in the last 30 days
+        response = iam.get_role(RoleName=role_name)
+        last_used = response['Role'].get('RoleLastUsed')
 
-# Disable editing of the report text
-report_text.config(state=tk.DISABLED)
+        if last_used is None:
+            print(f"Inactive role found: {role_name}")
+            # Perform the cleanup operation for the inactive role
+            # Uncomment the following line to delete the inactive role
+            # iam.delete_role(RoleName=role_name)
+        else:
+            last_used_date = last_used.get('LastUsedDate')
+            if last_used_date is not None:
+                last_used_datetime = datetime.strptime(str(last_used_date), "%Y-%m-%d %H:%M:%S+00:00")
+                days_since_last_used = (datetime.now() - last_used_datetime).days
+                if days_since_last_used > 30:
+                    print(f"Inactive role found: {role_name}")
+                    # Perform the cleanup operation for the inactive role
+                    # Uncomment the following line to delete the inactive role
+                    # iam.delete_role(RoleName=role_name)
 
-# Scrollbar for the text widget
-scrollbar = tk.Scrollbar(window)
-scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-report_text.config(yscrollcommand=scrollbar.set)
-scrollbar.config(command=report_text.yview)
+# Example usage
+cleanup_inactive_roles()
 
-# Footer
-footer_label = tk.Label(window, text="© 2023 Security Scanner App. All rights reserved.")
-footer_label.pack(side=tk.BOTTOM, pady=10)
 
-# Run the main event loop
-window.mainloop()
+# ec2 = boto3.client('ec2', region_name='us-east-1', aws_access_key_id=key_id, aws_secret_access_key=secret_key)
+
+#
+# def get_aws_account_id():
+#     sts_client = boto3.client('sts', aws_access_key_id=key_id, aws_secret_access_key=secret_key)
+#     response = sts_client.get_caller_identity()
+#     aws_account_id = response['Account']
+#
+#     return aws_account_id
+#
+#
+# # Example usage
+# account_id = get_aws_account_id()
+# print("AWS Account ID:", account_id)
+#
+#
+# iam_client = boto3.client('iam', aws_access_key_id=key_id, aws_secret_access_key=secret_key)
+#
+#
+# def is_root_user():
+#     current_user = iam_client.get_user()
+#     current_user_arn = current_user['User']['Arn']
+#     root_user_arn = f'arn:aws:iam::{account_id}:root'  # Replace AWS_ACCOUNT_ID with your actual account ID
+#
+#     return current_user_arn == root_user_arn
+#
+#
+# # Example usage
+# if is_root_user():
+#     print("Current user is the account root user.")
+# else:
+#     print("Current user is not the account root user.")

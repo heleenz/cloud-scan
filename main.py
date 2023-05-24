@@ -54,6 +54,26 @@ def connect(operation, data):
                     break
             return scan_info
 
+        if operation == "sg_misconfiguration":
+            client.send(data.encode())
+            scan_info = ""
+            while True:
+                package = client.recv(1024).decode()
+                scan_info += package
+                if not package:
+                    break
+            return scan_info
+
+        if operation == "iam_misconfiguration":
+            client.send(data.encode())
+            scan_info = ""
+            while True:
+                package = client.recv(1024).decode()
+                scan_info += package
+                if not package:
+                    break
+            return scan_info
+
         client.close()
 
     except Exception as e:

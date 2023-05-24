@@ -4,7 +4,7 @@ from botocore.exceptions import ClientError
 
 # Replace with your AWS access key ID and secret access key
 
-def s3_misconfig(key_id, secret_key):
+def s3_misconfiguration(key_id, secret_key):
     output_list = []
     check = {}
     result_tuple = ()

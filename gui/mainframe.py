@@ -16,9 +16,13 @@ severity_data['Medium'] = 0
 severity_data['Low'] = 0
 ec2_severities = {'High': 0, 'Medium': 0, 'Low': 0}
 s3_severities = {'High': 0, 'Medium': 0, 'Low': 0}
+sg_severities = {'High': 0, 'Medium': 0, 'Low': 0}
+iam_severities = {'High': 0, 'Medium': 0, 'Low': 0}
 services_data = {}
 services_data['EC2'] = 0
 services_data['S3'] = 0
+services_data['Security Groups'] = 0
+services_data['IAM'] = 0
 
 # CHECKLIST PROCESSING
 # Load list of services for Checklist combobox
@@ -31,23 +35,27 @@ service_checklist = []
 
 def draw_dashboard_canvas(chart, chart_data):
     if chart == "severity":
+        colors = ["#f4516c", "#ffb822", "#34bfa3"]
+
         severity_data['High'] += chart_data['High']
         severity_data['Medium'] += chart_data['Medium']
         severity_data['Low'] += chart_data['Low']
 
         severity_ax.clear()
-        severity_ax.bar(list(severity_data.keys()), list(severity_data.values()))
+        severity_ax.bar(list(severity_data.keys()), list(severity_data.values()), color=colors)
         severity_canvas.draw()
     if chart == "services":
         services_ax.clear()
         services_ax.pie(list(chart_data.values()), labels=list(chart_data.keys()), autopct='%1.1f%%')
         services_canvas.draw()
 
+
 def update_dashboard_summary():
     total_misconf = 0
     for k, v in services_data.items():
         total_misconf += v
     misconfig_count_label.configure(text=total_misconf)
+
 
 # Load checklist for selected service
 def show_selected(event):
@@ -75,7 +83,6 @@ def show_selected(event):
         if len(info_frame.winfo_children()) >= 2:
             for widget in info_frame.winfo_children():
                 widget.destroy()
-                # print(widget)
         print(info_frame.winfo_children())
     except Exception as e:
         print("Couldn't destroy widgets: ", e)
@@ -206,6 +213,99 @@ def s3_misconfiguration():
             s3_severities['Low'] += 1
     draw_dashboard_canvas("severity", s3_severities)
     services_data['S3'] = len(json.loads(tmp))
+    draw_dashboard_canvas("services", services_data)
+    update_dashboard_summary()
+
+def sg_misconfiguration():
+    access_key = os.environ['AWS_ACCESS_KEY_ID']
+    secret_key = os.environ['AWS_SECRET_ACCESS_KEY']
+    operation = "sg_misconfiguration"
+    data = {"operation": "sg_misconfiguration", "access_key": access_key, "secret_key": secret_key}
+    tmp = connect(operation, json.dumps(data))
+    count = 0
+    global dashboard_table_count
+    global sg_severities
+
+    # Delete old records
+    for record in sg_misconfig_table.get_children():
+        sg_misconfig_table.delete(record)
+
+    for record in dashboard_misconfig_table.get_children():
+        service = str(dashboard_misconfig_table.item(record, "values")[0])
+        if service == "Security Groups":
+            dashboard_misconfig_table.delete(record)
+
+    # Renew severities count
+    severity_data['High'] -= sg_severities['High']
+    severity_data['Medium'] -= sg_severities['Medium']
+    severity_data['Low'] -= sg_severities['Low']
+    sg_severities['High'] = 0
+    sg_severities['Medium'] = 0
+    sg_severities['Low'] = 0
+
+    # Add records to table
+    for record in json.loads(tmp):
+        sg_misconfig_table.insert(parent='', index='end', iid=count, text="", values=(record[0], record[-1]))
+        count += 1
+        dashboard_misconfig_table.insert(parent='', index='end', iid=dashboard_table_count, text="",
+                                         values=("Security Groups", record[0], record[-1]))
+        dashboard_table_count += 1
+
+        if record[-1] == "High":
+            sg_severities['High'] += 1
+        elif record[-1] == "Medium":
+            sg_severities['Medium'] += 1
+        else:
+            sg_severities['Low'] += 1
+    draw_dashboard_canvas("severity", sg_severities)
+    services_data['Security Groups'] = len(json.loads(tmp))
+    draw_dashboard_canvas("services", services_data)
+    update_dashboard_summary()
+
+
+def iam_misconfiguration():
+    access_key = os.environ['AWS_ACCESS_KEY_ID']
+    secret_key = os.environ['AWS_SECRET_ACCESS_KEY']
+    operation = "iam_misconfiguration"
+    data = {"operation": "iam_misconfiguration", "access_key": access_key, "secret_key": secret_key}
+    tmp = connect(operation, json.dumps(data))
+    count = 0
+    global dashboard_table_count
+    global iam_severities
+
+    # Delete old records
+    for record in iam_misconfig_table.get_children():
+        iam_misconfig_table.delete(record)
+
+    for record in dashboard_misconfig_table.get_children():
+        service = str(dashboard_misconfig_table.item(record, "values")[0])
+        if service == "IAM":
+            dashboard_misconfig_table.delete(record)
+
+    # Renew severities count
+    severity_data['High'] -= iam_severities['High']
+    severity_data['Medium'] -= iam_severities['Medium']
+    severity_data['Low'] -= iam_severities['Low']
+    iam_severities['High'] = 0
+    iam_severities['Medium'] = 0
+    iam_severities['Low'] = 0
+
+    # Add records to table
+    for record in json.loads(tmp):
+        iam_misconfig_table.insert(parent='', index='end', iid=count, text="", values=(record[0], record[-1]))
+        count += 1
+        dashboard_misconfig_table.insert(parent='', index='end', iid=dashboard_table_count, text="",
+                                         values=("IAM", record[0], record[-1]))
+        dashboard_table_count += 1
+
+        if record[-1] == "High":
+            iam_severities['High'] += 1
+        elif record[-1] == "Medium":
+            iam_severities['Medium'] += 1
+        else:
+            iam_severities['Low'] += 1
+    draw_dashboard_canvas("severity", iam_severities)
+    services_data['IAM'] = len(json.loads(tmp))
     draw_dashboard_canvas("services", services_data)
     update_dashboard_summary()
 
@@ -341,14 +441,17 @@ scan_notebook.pack(expand=1, fill="both", anchor="center")
 
 scan_ec2 = ttk.Frame(scan_notebook, padding=5)
 scan_s3 = ttk.Frame(scan_notebook, padding=5)
+scan_sg = ttk.Frame(scan_notebook, padding=5)
 scan_iam = ttk.Frame(scan_notebook, padding=5)
 
 scan_ec2.pack(expand=1, fill="both")
 scan_s3.pack(expand=1, fill="both")
+scan_sg.pack(expand=1, fill="both")
 scan_iam.pack(expand=1, fill="both")
 
 scan_notebook.add(scan_ec2, text="EC2")
 scan_notebook.add(scan_s3, text="S3")
+scan_notebook.add(scan_sg, text="Security Groups")
 scan_notebook.add(scan_iam, text="IAM")
 
 enum = "Enumeration"
@@ -477,6 +580,52 @@ report_text.insert(END, sample_report)
 
 # Disable editing of the report text
 report_text.config(state=DISABLED)
+
+
+# Security Groups scan
+sg_misconfig_frame = ttk.Frame(scan_sg)
+sg_misconfig_frame.pack(expand=1, fill="both")
+sg_btn2 = ttk.Button(sg_misconfig_frame, text="Start Check", command=lambda: threading.Thread(target=sg_misconfiguration).start())
+sg_btn2.grid(row=0, column=0, sticky="w")
+sg_misconfig_lbl = ttk.Label(sg_misconfig_frame, padding=10)
+sg_misconfig_lbl.grid(row=1, column=0, sticky="w")
+# Output table
+sg_misconfig_table = ttk.Treeview(sg_misconfig_frame)
+# Define columns
+sg_misconfig_table['columns'] = ("Misconfiguration", "Severity level")
+# Formate columns
+sg_misconfig_table.column("#0", width=0, stretch=NO)
+sg_misconfig_table.column("Misconfiguration", anchor="w", width=520, minwidth=80)
+sg_misconfig_table.column("Severity level", anchor="e", width=100, minwidth=50)
+# Create headings
+sg_misconfig_table.heading("#0", text="", anchor="w")
+sg_misconfig_table.heading("Misconfiguration", text="Misconfiguration", anchor="w")
+sg_misconfig_table.heading("Severity level", text="Severity level", anchor="w")
+
+sg_misconfig_table.grid(row=2, column=0, sticky=N)
+
+
+# IAM scan tab
+iam_misconfig_frame = ttk.Frame(scan_iam)
+iam_misconfig_frame.pack(expand=1, fill="both")
+iam_btn2 = ttk.Button(iam_misconfig_frame, text="Start Check", command=lambda: threading.Thread(target=iam_misconfiguration).start())
+iam_btn2.grid(row=0, column=0, sticky="w")
+iam_misconfig_lbl = ttk.Label(iam_misconfig_frame, padding=10)
+iam_misconfig_lbl.grid(row=1, column=0, sticky="w")
+# Output table
+iam_misconfig_table = ttk.Treeview(iam_misconfig_frame)
+# Define columns
+iam_misconfig_table['columns'] = ("Misconfiguration", "Severity level")
+# Formate columns
+iam_misconfig_table.column("#0", width=0, stretch=NO)
+iam_misconfig_table.column("Misconfiguration", anchor="w", width=520, minwidth=80)
+iam_misconfig_table.column("Severity level", anchor="e", width=100, minwidth=50)
+# Create headings
+iam_misconfig_table.heading("#0", text="", anchor="w")
+iam_misconfig_table.heading("Misconfiguration", text="Misconfiguration", anchor="w")
+iam_misconfig_table.heading("Severity level", text="Severity level", anchor="w")
+
+iam_misconfig_table.grid(row=2, column=0, sticky=N)
 
 
 # Checklist tab
