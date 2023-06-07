@@ -1,0 +1,21 @@
+=== Security Scan Report ===
+
+Scan ID: 3
+Date: 2023-06-07 18:07:09.226322
+Target: S3
+
+Summary:
+- Access Logging Enabled : S3 bucket access logging is not enabled
+- S3 HTTPS Only: The S3 bucket '1908rbucket1' does not have an HTTPS-only policy.
+- S3 Bucket MFA Delete Enabled: Warning: S3 Bucket MFA Delete is not enabled.
+- S3 Buckets Encrypted with Customer-Provided CMKs: Warning: S3 Bucket is not encrypted with a customer-provided AWS KMS CMK.
+- S3 Buckets Lifecycle Configuration: Lifecycle Configuration does not exist.
+- S3 Object Lock Enabled: S3 bucket 1908rbucket1 does not have Object Lock enabled.
+
+Recommendations:
+1. Check S3 bucket access logging is enabled on the CloudTrail S3 bucket
+2. Check if S3 buckets have secure transport policy
+3. Ensure AWS S3 buckets have the MFA Delete feature enabled.
+4. Ensure that Amazon S3 buckets are encrypted with customer-provided AWS KMS CMKs.
+5. Ensure Amazon S3 buckets have lifecycle configuration enabled for security and cost optimization purposes. 
+6. Ensure that AWS S3 buckets use Object Lock for data protection and/or regulatory compliance.

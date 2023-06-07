@@ -1,0 +1,19 @@
+=== Security Scan Report ===
+
+Scan ID: 4
+Date: 2023-06-07 17:53:46.775361
+Target: IAM
+
+Summary:
+- Root account MFA: Root Account MFA is not enabled. Enable MFA for the root account for enhanced security.
+- Access key rotation: Access Key Rotation: Access key AKIAVN2VQDPCKOSS7DL7 should be rotated periodically.
+- Role Service Inactivity: Role 'AWSServiceRoleForSupport' has inactive service access
+- Role Service Inactivity: Role 'AWSServiceRoleForTrustedAdvisor' has inactive service access
+- Complex Password Policy: Password policy does not require symbols.
+
+Recommendations:
+1. Multifactor Authentication is strongly recommended to be enabled for every account with no exceptions.
+2. The access keys should rotated periodically.
+3. Roles which have access to services but have not used in past several days should be looked into and cleaned up.
+4. Roles which have access to services but have not used in past several days should be looked into and cleaned up.
+5. Password policy should be complex enough so that users can set passwords which are not easy to guess and crack.

@@ -271,9 +271,6 @@ def iam_misconfiguration(key_id, secret_key):
 
         if last_used is None:
             print(f"Inactive role found: {role_name}")
-            # Perform the cleanup operation for the inactive role
-            # Uncomment the following line to delete the inactive role
-            # iam.delete_role(RoleName=role_name)
         else:
             last_used_date = last_used.get('LastUsedDate')
             if last_used_date is not None:

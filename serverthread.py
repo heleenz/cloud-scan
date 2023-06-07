@@ -29,9 +29,9 @@ def client_thread(con):
         instance_id = pd["instance_id"]
         key_id = pd["access_key"]
         secret_key = pd["secret_key"]
-        print(f"id: {key_id}\nkey: {secret_key}")
-        pd = ec2_enumeration(instance_id, key_id, secret_key)
-
+        scan_output = ec2_enumeration(instance_id, key_id, secret_key)
+        print(scan_output)
+        pd = json.dumps(scan_output)
         con.send(pd.encode())
 
     elif pd["operation"] == "ec2_misconfiguration":

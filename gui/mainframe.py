@@ -1,9 +1,11 @@
 from datetime import datetime
 from tkinter import *
 from tkinter import ttk
+from tkinter.messagebox import showerror
 from main import connect
 import json
 import os
+import re
 from awsconnect import AWSCredentialsWindow
 import threading
 import matplotlib.pyplot as plt
@@ -159,20 +161,92 @@ def update_status_by_id(id_value, new_status):
             print("Status updated successfully.")
             return
 
-def ec2_enumeration():
+
+def create_instance_details_frame(details):
+    frame = ttk.LabelFrame(ec2_enum_frame, text="Instance details")
+    frame.grid(row=4, column=0, padx=10, pady=10, sticky="w")
+
+    ttk.Label(frame, text="ID:").grid(row=0, column=0, sticky="w")
+    ttk.Label(frame, text=details["ID"]).grid(row=0, column=1, sticky="w")
+
+    ttk.Label(frame, text="Type:").grid(row=1, column=0, sticky="w")
+    ttk.Label(frame, text=details["Type"]).grid(row=1, column=1, sticky="w")
+
+    ttk.Label(frame, text="Launch Time:").grid(row=2, column=0, sticky="w")
+    ttk.Label(frame, text=details["Launch Time"]).grid(row=2, column=1, sticky="w")
+
+    ttk.Label(frame, text="Region:").grid(row=3, column=0, sticky="w")
+    ttk.Label(frame, text=details["Region"]).grid(row=3, column=1, sticky="w")
+
+def create_security_group_details_frame(details):
+    frame = ttk.LabelFrame(ec2_enum_frame, text="Security Group details for " + details["Group ID"])
+    frame.grid(row=5, column=0, padx=10, pady=10, sticky="w")
+
+    ttk.Label(frame, text="Group Name:").grid(row=0, column=0, sticky="w")
+    ttk.Label(frame, text=details["Group Name"]).grid(row=0, column=1, sticky="w")
+
+    ttk.Label(frame, text="Description:").grid(row=1, column=0, sticky="w")
+    ttk.Label(frame, text=details["Description"]).grid(row=1, column=1, sticky="w")
+
+    inbound_rules_frame = ttk.LabelFrame(frame, text="Inbound Rules")
+    inbound_rules_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+
+    for i, rule in enumerate(details["Inbound Rules"]):
+        ttk.Label(inbound_rules_frame, text="Protocol:").grid(row=i, column=0, sticky="w")
+        ttk.Label(inbound_rules_frame, text=rule["Protocol"]).grid(row=i, column=1, sticky="w")
+
+        ttk.Label(inbound_rules_frame, text="From Port:").grid(row=i, column=2, sticky="w")
+        ttk.Label(inbound_rules_frame, text=rule["From Port"]).grid(row=i, column=3, sticky="w")
+
+        ttk.Label(inbound_rules_frame, text="To Port:").grid(row=i, column=4, sticky="w")
+        ttk.Label(inbound_rules_frame, text=rule["To Port"]).grid(row=i, column=5, sticky="w")
+
+        ttk.Label(inbound_rules_frame, text="CIDR Blocks:").grid(row=i, column=6, sticky="w")
+        ttk.Label(inbound_rules_frame, text=rule["CIDR Blocks"]).grid(row=i, column=7, sticky="w")
+
+    outbound_rules_frame = ttk.LabelFrame(frame, text="Outbound Rules")
+    outbound_rules_frame.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+
+    for i, rule in enumerate(details["Outbound Rules"]):
+        ttk.Label(outbound_rules_frame, text="Protocol:").grid(row=i, column=0, sticky="w")
+        ttk.Label(outbound_rules_frame, text=rule["Protocol"]).grid(row=i, column=1, sticky="w")
+
+        ttk.Label(outbound_rules_frame, text="From Port:").grid(row=i, column=2, sticky="w")
+        ttk.Label(outbound_rules_frame, text=rule["From Port"]).grid(row=i, column=3, sticky="w")
+
+        ttk.Label(outbound_rules_frame, text="To Port:").grid(row=i, column=4, sticky="w")
+        ttk.Label(outbound_rules_frame, text=rule["To Port"]).grid(row=i, column=5, sticky="w")
+
+        ttk.Label(outbound_rules_frame, text="CIDR Blocks:").grid(row=i, column=6, sticky="w")
+        ttk.Label(outbound_rules_frame, text=rule["CIDR Blocks"]).grid(row=i, column=7, sticky="w")
+
+
+def ec2_enumeration(ec2_instance_id):
     # importing aws credentials
     access_key = os.environ['AWS_ACCESS_KEY_ID']
     secret_key = os.environ['AWS_SECRET_ACCESS_KEY']
 
-    print(f"SCAN WINDOW\n id: {access_key}\nkey: {secret_key}")
-
-    ec2_instance_id = ec2_entry.get()
     operation = "ec2_enumeration"
     data = {"operation": "ec2_enumeration", "instance_id": ec2_instance_id, "access_key": access_key,
             "secret_key": secret_key}
     tmp = connect(operation, json.dumps(data))
-    ec2_enum_lbl["text"] = tmp
+    details = json.loads(tmp)
+    create_instance_details_frame(details[0])
+    create_security_group_details_frame(details[1])
+
     print("Scanning EC2. Please Wait...")
+
+
+def validate_ec2_instance_id():
+    pattern = r'^i-(?:[a-f\d]{8}|[a-f\d]{17})$'
+    instance_id = ec2_entry.get().strip()
+
+    if re.match(pattern, instance_id):
+        print(f"The EC2 instance ID '{instance_id}' is valid.")
+        threading.Thread(target=ec2_enumeration(instance_id)).start()
+    else:
+        showerror("Invalid input", "Incorrect instance id")
+        print(f"The EC2 instance ID '{instance_id}' is invalid.")
 
 
 def ec2_misconfiguration():
@@ -503,11 +577,11 @@ header_label.pack(pady=10)
 summary_frame = Frame(dashboard)
 summary_frame.pack(side=TOP, fill=X)
 
-resources_label = Label(summary_frame, text="Total Scanned Resources:")
-resources_label.pack(side=LEFT)
+# resources_label = Label(summary_frame, text="Total Scanned Resources:")
+# resources_label.pack(side=LEFT)
 
-resources_count_label = Label(summary_frame, text="0")  # Replace with actual count
-resources_count_label.pack(side=LEFT, padx=5)
+# resources_count_label = Label(summary_frame, text="0")  # Replace with actual count
+# resources_count_label.pack(side=LEFT, padx=5)
 
 misconfig_label = Label(summary_frame, text="Total Misconfigurations:")
 misconfig_label.pack(side=LEFT)
@@ -616,10 +690,10 @@ ec2_lbl = ttk.Label(ec2_enum_frame, text="Instance ID: ")
 ec2_lbl.grid(row=0, column=0, sticky="w")
 ec2_entry = ttk.Entry(ec2_enum_frame)
 ec2_entry.grid(row=1, column=0, sticky="w")
-ec2_btn1 = ttk.Button(ec2_enum_frame, text="GO!", command=lambda: threading.Thread(target=ec2_enumeration).start())
+ec2_btn1 = ttk.Button(ec2_enum_frame, text="GO!", command=lambda: threading.Thread(target=validate_ec2_instance_id()).start())
 ec2_btn1.grid(row=2, column=0, sticky="w", pady=5)
-ec2_enum_lbl = ttk.Label(ec2_enum_frame, text="Result will be here", padding=10)
-ec2_enum_lbl.grid(row=3, column=0, sticky="w", columnspan=3)
+# ec2_enum_lbl = ttk.Label(ec2_enum_frame, text="Result will be here", padding=10)
+# ec2_enum_lbl.grid(row=3, column=0, sticky="w", columnspan=3)
 ec2_enum_frame.pack(expand=1, fill="both")
 
 # EC2 Misconf frame

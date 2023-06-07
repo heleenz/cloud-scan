@@ -2,13 +2,6 @@ import os
 import tkinter as tk
 from tkinter.messagebox import showerror, showwarning, showinfo
 import re
-from main import connect
-import json
-
-# Set AWS credentials as environment variables
-#os.environ['AWS_ACCESS_KEY_ID'] = "AKIAVN2VQDPCI5SDRBVL"
-#os.environ['AWS_SECRET_ACCESS_KEY'] = "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"
-
 
 class AWSCredentialsWindow:
     access_key = ""
@@ -50,7 +43,6 @@ class AWSCredentialsWindow:
             os.environ['AWS_ACCESS_KEY_ID'] = access_key
             os.environ['AWS_SECRET_ACCESS_KEY'] = secret_key
 
-            print(f"AWS WINDOW\n id: {access_key}\nkey: {secret_key}")
             # Close the window after submitting
             self.window.destroy()
         else:
